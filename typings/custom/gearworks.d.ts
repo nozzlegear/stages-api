@@ -3,6 +3,7 @@
 declare module "gearworks"
 {
     import * as pouch from "pouchdb";
+    import {Enums} from "shopify-prime";
     import {CachePolicy, CacheOptions, CacheClient} from "catbox";
     import {
         Server as HapiServer, 
@@ -66,17 +67,15 @@ declare module "gearworks"
     
     export interface AuthCredentials
     {
-        username: string;
-        userId: string;
+        accountId: string;
+        apiKey: string;
     }
     
     export interface AuthArtifacts
     {
-        shopName: string;
         shopDomain: string;
         shopToken: string;
         shopId: number;
-        chargeId: number;
         planId: string;
     }
     
@@ -103,6 +102,83 @@ declare module "gearworks"
          */
         permissions: string[];
     }
+
+    export type StageColor = (
+        "red" | 
+        "slate" | 
+        "blue" | 
+        "orange" | 
+        "white" | 
+        "green" | 
+        "purple" | 
+        "teal" | 
+        "yellow"
+    );
+
+    export interface Stage extends pouch.api.methods.ExistingDoc
+    {
+        name: string;
+
+        color: StageColor;
+
+        isDeleted: boolean;
+
+        sortIndex: number;
+    }
+
+    /**
+     * An account object that ties multiple users together.
+     */
+    export interface Account extends pouch.api.methods.ExistingDoc
+    {
+        /**
+         * An API key unique to the account that can be used to make calls to the Stages API.
+         */
+        apiKey: string;
+
+        /**
+         * The date the account was created, represented as an ISO date string.
+         */
+        dateCreated: string;
+
+        /**
+         * A reason given by the user when cancelling their account.
+         */
+        reasonForCancellation: string;
+
+        /**
+         * The id of the user that owns this account.
+         */
+        ownerId: string;
+
+        stripe: {
+            customerId: string;
+            subscriptionId: string;
+        }
+
+        shopify: {
+            chargeId: number;
+            accessToken: string;
+            shopName: string;
+            shopDomain: string;
+            shopId: number;
+
+            /**
+             * Current Shopify API permissions granted to this account. Use the Shopify OAuth flow to update permissions.
+             */
+            permissions: Enums.AuthScope[];
+        }
+
+        planId: string;
+
+        stages: Stage[];
+
+        hasCreatedStages: boolean;
+
+        hasCreatedRules: boolean;
+
+        isCanceled: boolean;
+    }
     
     export interface User extends pouch.api.methods.ExistingDoc
     {        
@@ -115,38 +191,11 @@ declare module "gearworks"
          * The user's hashed password.
          */
         hashedPassword: string;
-        
-        /**
-         * An access token for the user's store.
-         */
-        shopifyAccessToken?: string;
-        
-        /**
-         * The user's Shopify shop domain.
-         */
-        shopifyDomain?: string;
-        
-        /**
-         * The name of the user's Shopify shop.
-         */
-        shopifyShopName?: string;
 
         /**
-         * The id of the user's Shopify shop.
+         * Account id. 
          */
-        shopifyShopId?: number;
-        
-        /**
-         * The user's plan id.
-         */
-        planId?: string;
-
-        /**
-         * The user's Shopify charge id.
-         */
-        chargeId?: number;
-
-        appConfig?: DeliverSettings;
+        accountId: string;
     }
 
     /**

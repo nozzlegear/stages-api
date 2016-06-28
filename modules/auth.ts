@@ -8,7 +8,7 @@ import {unauthorized, badRequest, wrap as boom} from "boom";
 import {isAuthenticRequest, isAuthenticWebhook} from "shopify-prime";
 import {ShopifySecretKey, EncryptionSignature, MasterKey} from "./config";
 import {Caches, getCacheValue, setCacheValue, deleteCacheValue} from "./cache";
-import {Server, DefaultContext, Request, User, AuthArtifacts, AuthCredentials, AuthCookie} from "gearworks";
+import {Server, DefaultContext, Request, User, AuthArtifacts, AuthCredentials, AuthCookie, Account} from "gearworks";
 
 export const cookieName = "GearworksAuth"; 
 export const strategies = {
@@ -19,30 +19,7 @@ export const strategies = {
 }
 
 export function configureAuth(server: Server)
-{
-    //Configure a preresponse handler that will add the user's auth information to all view contexts
-    server.ext("onPreResponse", (request: Request, reply) =>
-    {
-        if (request.response.variety === "view")
-        {
-            const context: DefaultContext = request.response.source.context || {};
-            
-            context.user = {
-                isAuthenticated: request.auth.isAuthenticated,
-                userId: undefined,
-                username: undefined,
-            }
-            
-            if (request.auth.isAuthenticated)
-            {
-                context.user.userId = request.auth.credentials.userId; 
-                context.user.username = request.auth.credentials.username;
-            }
-        }
-        
-        return reply.continue();
-    })
-    
+{    
     const masterScheme = "master";
     const userScheme = "user";
     const shopifyRequestScheme = "shopify-request";
@@ -65,11 +42,12 @@ export function configureAuth(server: Server)
     server.auth.scheme(userScheme, (s, options) => ({
         authenticate: async (request, reply) =>
         {
-            let auth: {credentials: AuthCredentials; artifacts: AuthArtifacts};
+            const header = request.headers["x-stages-api-key"];
+            let auth: AuthArtifacts;
 
             try
             {
-                auth = await getUserAuth(request);
+                auth = await getAccountCache(header, true);
             }
             catch (e)
             {
@@ -154,115 +132,40 @@ export function configureAuth(server: Server)
     server.auth.strategy(strategies.masterAuth, masterScheme, true /* Default strategy for all requests */);
 }
 
-/**
- * Attempts to get the user's auth cookie, ensuring it has a matching encryption signature. 
- * Returns undefined if the cookie isn't found or doesn't have a matching signature.
- */
-export function getUserAuth(request: Request)
-{
-    const cookie: AuthCookie = request.yar.get(cookieName, false);
-    
-    if (!cookie || ! bcrypt.compareSync(EncryptionSignature, cookie.encryptionSignature))
-    {
-        return undefined;
-    }
-    
-    return getAuthData(cookie);
-}
-
-/**
- * Sets an auth cookie and caching data, e.g. after logging in or updating a user.
- */
-export async function setUserAuth(request: Request, user: User)
-{
-    const hash = bcrypt.hashSync(EncryptionSignature, 10);
-    const cookie: AuthCookie = {
-        encryptionSignature: hash,
-        userId: user._id.toLowerCase(),
-        username: user.username,
-    }
-
-    try
-    {
-        await setUserCache(user);
-    }
-    catch (e)
-    {
-        console.error("Error setting user cache data.");
-
-        throw e;
-    }
-    
-    return request.yar.set(cookieName, cookie);
-}
-
-async function getAuthData(cookie: AuthCookie, autoRefreshCache?: boolean): Promise<{artifacts: AuthArtifacts; credentials: AuthCredentials}>
-{
-    // Auto refresh cache by default
-    if (typeof autoRefreshCache === "undefined")
-    {
-        autoRefreshCache = true;
-    }
-
-    const credentials: AuthCredentials = {
-        username: cookie.username,
-        userId: cookie.userId,
-    };
-    const session = await getUserCache(cookie.userId, autoRefreshCache);
-
-    if (!session)
-    {
-        //Session can be null when user data wasn't found in the cache *or* the database.
-        
-        return undefined;
-    }
-
-    const result = {
-        artifacts: session,
-        credentials: credentials,
-    };
-    
-    return result;
-}
-
-async function setUserCache(user: User)
+async function setAccountCache(account: Account)
 {
     const result: AuthArtifacts = {
-        planId: user.planId,
-        shopName: user.shopifyShopName,
-        shopDomain: user.shopifyDomain,
-        shopToken: user.shopifyAccessToken,
-        shopId: user.shopifyShopId,
-        chargeId: user.chargeId,
+        planId: account.planId,
+        shopDomain: account.shopify.shopDomain,
+        shopToken: account.shopify.accessToken,
+        shopId: account.shopify.shopId,
     };
 
-    await setCacheValue(Caches.userAuth, user._id, result);
+    await setCacheValue(Caches.userAuth, account.apiKey, result);
 
     return result;
 }
 
 /**
- * Gets user data from the cache.
+ * Gets account data from the cache according to its api key.
  */
-async function getUserCache(userId: string, autoRefreshCache: boolean): Promise<AuthArtifacts>
+async function getAccountCache(apikey: string, autoRefreshCache: boolean): Promise<AuthArtifacts>
 {
-    const result = await getCacheValue<AuthArtifacts>(Caches.userAuth, userId);
+    const result = await getCacheValue<AuthArtifacts>(Caches.userAuth, apikey);
 
     if (!result && autoRefreshCache)
     {
         // Attempt to pull auth data from database.
-        const user = await Users.get<User>(userId.toLowerCase());
+        const account = await Users.get<Account>(apikey.toLowerCase());
         const data: AuthArtifacts = {
-            planId: user.planId,
-            shopDomain: user.shopifyDomain, 
-            shopName: user.shopifyShopName,
-            shopToken: user.shopifyAccessToken,
-            shopId: user.shopifyShopId,
-            chargeId: user.chargeId,
+            planId: account.planId,
+            shopDomain: account.shopify.shopDomain, 
+            shopToken: account.shopify.accessToken,
+            shopId: account.shopify.shopId,
         };
 
         // Store this data back in the cache to prevent future db queries
-        await setCacheValue(Caches.userAuth, userId, data);
+        await setCacheValue(Caches.userAuth, apikey, data);
 
         return data;
     }

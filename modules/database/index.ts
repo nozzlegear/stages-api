@@ -21,13 +21,15 @@ export async function findUserByShopId(shopId: number | string): Promise<User>
 
     await Users.createIndex({
         index: {
-            fields: ["shopifyShopId"]
+            fields: ["shopify.shopId"]
         }
     });
 
     const result = await Users.find<User>({
         selector: {
-            shopifyShopId: parseInt(shopId as string),
+            shopify: {
+                shopId: parseInt(shopId as string)
+            },
         },
         limit: 1,
     });
