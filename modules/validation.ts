@@ -1,6 +1,6 @@
 /// <reference path="./../typings/typings.d.ts" />
 
-import {ValidationError} from "joi";
+import {ValidationError,ObjectSchema} from "joi";
 import capitalize = require("string-capitalize");
 
 export function humanizeError(error: ValidationError)
@@ -13,4 +13,12 @@ export function humanizeError(error: ValidationError)
     }
     
     return message;
+}
+
+export function makeKeysOptional(joi: ObjectSchema)
+{
+    throw new Error("not implemented");
+
+    // TODO: Loop through all keys in the joi object and then pass them to object.optionalKeys(keys)
+    //joi.optionalKeys([]);
 }

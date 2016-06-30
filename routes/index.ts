@@ -1,9 +1,11 @@
 /// <reference path="./../typings/index.d.ts" />
 
-import {registerRoutes as homeRoutes} from "./home/home-routes";
-import {registerRoutes as userRoutes} from "./users/users-routes";
+import homeRoutes from "./home/home-routes";
+import userRoutes from "./users/users-routes";
+import accountRoutes from "./accounts/accounts-routes";
 
 export const RoutesToRegister = [
     homeRoutes,
     userRoutes,
+    accountRoutes,
 ];

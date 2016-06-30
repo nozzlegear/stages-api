@@ -9,7 +9,7 @@ import {Users, Accounts} from "../../modules/database";
 import {Server, Request, Account, User} from "gearworks";
 import {notImplemented, notAcceptable, expectationFailed} from "boom";
 
-export function registerRoutes(server: Server)
+export default function registerRoutes(server: Server)
 {
     server.route({
         path: "/users",

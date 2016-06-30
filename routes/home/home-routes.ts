@@ -3,7 +3,7 @@ import {IReply} from "hapi";
 import {Server, Request} from "gearworks";
 import {Version} from "../../modules/config";
 
-export function registerRoutes(server: Server)
+export default function registerRoutes(server: Server)
 {
     server.route({
         path: "/",
