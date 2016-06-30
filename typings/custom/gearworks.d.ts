@@ -96,6 +96,11 @@ declare module "gearworks"
          * A humanized description that will be displayed on the pricing page.
          */
         description: string;
+
+        /**
+         * The total number of users — including the account owner — allowed by this plan.
+         */
+        totalUsers: number;
         
         /**
          * A custom list of in-app permissions available to this plan.
@@ -183,9 +188,9 @@ declare module "gearworks"
     export interface User extends pouch.api.methods.ExistingDoc
     {        
         /**
-         * The user's username or email address.
+         * The user's name.
          */
-        username: string;
+        name: string;
         
         /**
          * The user's hashed password.

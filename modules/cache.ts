@@ -11,23 +11,15 @@ export const DefaultTTL = 60 * 60 * 1000; //60 minutes in milliseconds
 /**
  * A collection of caches used throughout the app.
  */
-export const Caches: {userAuth: CacheConfig, shopTagConfig: CacheConfig} = {
+export const Caches: {accountAuth: CacheConfig} = {
     /**
      * A cache for storing user data used during auth checks.
      */
-    userAuth: {
+    accountAuth: {
         segment: "user_auth_data",
         client: undefined,
         defaultTTL: DefaultTTL,
     },
-    /**
-     * A cache for storing a shop's tag configuration.
-     */
-    shopTagConfig: {
-        segment: "shop_tag_config",
-        client: undefined,
-        defaultTTL: 24 * 60 * 60 * 1000, // Cache for 24 hours
-    }
 }
 
 /**

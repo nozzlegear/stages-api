@@ -1,7 +1,7 @@
 /// <reference path="./../typings/typings.d.ts" />
 
 import * as bcrypt from "bcrypt";
-import {Users} from "./database";
+import {Accounts} from "./database";
 import {v4 as guid} from "node-uuid";
 import {getRawBody} from "./requests";
 import {unauthorized, badRequest, wrap as boom} from "boom";
@@ -13,7 +13,7 @@ import {Server, DefaultContext, Request, User, AuthArtifacts, AuthCredentials, A
 export const cookieName = "GearworksAuth"; 
 export const strategies = {
     masterAuth: "full-auth",
-    userAuth: "basic-auth",
+    accountAuth: "basic-auth",
     shopifyRequest: "shopify-request",
     shopifyWebhook: "shopify-webhook-auth",
 }
@@ -134,7 +134,7 @@ export function configureAuth(server: Server)
         },
     }))
     
-    server.auth.strategy(strategies.userAuth, userScheme, false);
+    server.auth.strategy(strategies.accountAuth, userScheme, false);
     server.auth.strategy(strategies.shopifyRequest, shopifyRequestScheme, false);
     server.auth.strategy(strategies.shopifyWebhook, shopifyWebhookScheme, false);
     server.auth.strategy(strategies.masterAuth, masterScheme, true /* Default strategy for all requests */);
@@ -150,7 +150,7 @@ async function setAccountCache(account: Account)
         shopId: account.shopify.shopId,
     };
 
-    await setCacheValue(Caches.userAuth, account.apiKey, result);
+    await setCacheValue(Caches.accountAuth, account.apiKey, result);
 
     return result;
 }
@@ -160,12 +160,12 @@ async function setAccountCache(account: Account)
  */
 async function getAccountCache(apikey: string, autoRefreshCache: boolean): Promise<AuthArtifacts>
 {
-    const result = await getCacheValue<AuthArtifacts>(Caches.userAuth, apikey);
+    const result = await getCacheValue<AuthArtifacts>(Caches.accountAuth, apikey);
 
     if (!result && autoRefreshCache)
     {
         // Attempt to pull auth data from database.
-        const account = await Users.get<Account>(apikey.toLowerCase());
+        const account = await Accounts.findByApiKey(apikey.toLowerCase());
         const data: AuthArtifacts = {
             accountId: account._id,
             planId: account.planId,
@@ -175,7 +175,7 @@ async function getAccountCache(apikey: string, autoRefreshCache: boolean): Promi
         };
 
         // Store this data back in the cache to prevent future db queries
-        await setCacheValue(Caches.userAuth, apikey, data);
+        await setCacheValue(Caches.accountAuth, apikey, data);
 
         return data;
     }

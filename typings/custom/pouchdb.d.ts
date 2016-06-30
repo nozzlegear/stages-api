@@ -801,6 +801,57 @@ declare module "pouchdb" {
                     }
                 }
 
+                /** Contains the method and call/return types for `.query()`. */
+                module query {
+                    interface QueryOptions extends options.EmptyOptions {
+                        attachment?: boolean;
+                        conflicts?: boolean;
+                        descending?: boolean;
+                        endkey?: any;
+                        group?: boolean;
+                        group_level?: number;
+                        include_docs?: boolean;
+                        inclusive_end?: boolean;
+                        key?: string;
+                        keys?: Array<string>;
+                        reduce2?: () => number; // TODO: Define parameters and return valud
+                        limit?: boolean;
+                        reduce?: string | (() => void); // TODO: Define parameters and return valud
+                        skip?: number;
+                        stale?: string;
+                        startkey?: any;
+                    }
+                    type QueryMap<T> = (doc: T, emit: (value: any) => void) => void;
+                    type QueryMapAndReduce<T> = {map: (doc: T, emit: (value: any) => void) => void, reduce: (keys: string[], values: T[], rereduce: any) => void | string };
+                    type QueryFunction<T> =  QueryMap<T> | QueryMapAndReduce<T> | string;
+                    interface Result<T> {
+                        offset: number,
+                        rows: {
+                            id: string;
+                            key: string;
+                            value: any;
+                            doc: T;
+                        }[],
+                        total_rows: number,
+                    }
+                    /**
+                     * Callback pattern for `.query()`
+                     */
+                    interface Callback {
+                        /**
+                         * Query the database.
+                         */
+                        query<T>(func: QueryFunction<T>, options?: QueryOptions, callback?: async.Callback<Result<T>>): void;
+                    }
+                    /** Promise pattern for `.query()` */
+                    interface Promisable {
+                        /**
+                         * Query the database.
+                         */
+                        query<T>(func: QueryFunction<T>, options?: QueryOptions): async.PouchPromise<Result<T>>;
+                    }
+                }
+
                 /** Contains the method and call/return types for get() */
                 module get {
                     interface Options {
@@ -1180,6 +1231,7 @@ declare module "pouchdb" {
                     , methods.info.Callback
                     , methods.post.Callback
                     , methods.put.Callback
+                    , methods.query.Callback
                     , methods.remove.Callback { }
                 /** pouchDB api: promise based */
                 interface Promisable extends
@@ -1196,6 +1248,7 @@ declare module "pouchdb" {
                     , methods.info.Promisable
                     , methods.post.Promisable
                     , methods.put.Promisable
+                    , methods.query.Promisable
                     , methods.remove.Promisable { }
             }
 
