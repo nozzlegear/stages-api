@@ -8,7 +8,7 @@ import {unauthorized, badRequest, wrap as boom} from "boom";
 import {isAuthenticRequest, isAuthenticWebhook} from "shopify-prime";
 import {ShopifySecretKey, EncryptionSignature, MasterKey} from "./config";
 import {Caches, getCacheValue, setCacheValue, deleteCacheValue} from "./cache";
-import {Server, DefaultContext, Request, User, AuthArtifacts, AuthCredentials, AuthCookie, Account} from "gearworks";
+import {Server, DefaultContext, Request, User, AuthArtifacts, AuthCredentials, Account} from "gearworks";
 
 export const cookieName = "GearworksAuth"; 
 export const strategies = {
@@ -28,26 +28,30 @@ export function configureAuth(server: Server)
     server.auth.scheme(masterScheme, (s, options) => ({
         authenticate: async (request, reply) => 
         {
-            const header = request.headers["x-stages-api-key"];
+            const apiKey = request.headers["x-stages-api-key"];
 
-            if (!header || header !== MasterKey)
+            if (!apiKey || apiKey !== MasterKey)
             {
                 return reply(unauthorized());
             }
 
-            return reply.continue({credentials: {}, artifacts: {}});
+            const credentials: AuthCredentials = {
+                apiKey: apiKey,
+            }
+
+            return reply.continue({credentials: credentials});
         }
     }));
     
     server.auth.scheme(userScheme, (s, options) => ({
         authenticate: async (request, reply) =>
         {
-            const header = request.headers["x-stages-api-key"];
-            let auth: AuthArtifacts;
+            const apiKey = request.headers["x-stages-api-key"];
+            let artifacts: AuthArtifacts;
 
             try
             {
-                auth = await getAccountCache(header, true);
+                artifacts = await getAccountCache(apiKey, true);
             }
             catch (e)
             {
@@ -59,12 +63,16 @@ export function configureAuth(server: Server)
                 return reply(boom(e));
             }
 
-            if (!auth)
+            if (!artifacts)
             {
                 return reply(unauthorized());
             }
+
+            const credentials: AuthCredentials = {
+                apiKey: apiKey,
+            }
             
-            return reply.continue(auth);
+            return reply.continue({credentials: credentials, artifacts: artifacts});
         }
     }));
     
@@ -135,6 +143,7 @@ export function configureAuth(server: Server)
 async function setAccountCache(account: Account)
 {
     const result: AuthArtifacts = {
+        accountId: account._id,
         planId: account.planId,
         shopDomain: account.shopify.shopDomain,
         shopToken: account.shopify.accessToken,
@@ -158,6 +167,7 @@ async function getAccountCache(apikey: string, autoRefreshCache: boolean): Promi
         // Attempt to pull auth data from database.
         const account = await Users.get<Account>(apikey.toLowerCase());
         const data: AuthArtifacts = {
+            accountId: account._id,
             planId: account.planId,
             shopDomain: account.shopify.shopDomain, 
             shopToken: account.shopify.accessToken,

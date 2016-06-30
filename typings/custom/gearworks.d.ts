@@ -67,12 +67,12 @@ declare module "gearworks"
     
     export interface AuthCredentials
     {
-        accountId: string;
         apiKey: string;
     }
     
     export interface AuthArtifacts
     {
+        accountId: string;
         shopDomain: string;
         shopToken: string;
         shopId: number;
@@ -206,20 +206,5 @@ declare module "gearworks"
         passwordResetToken: string;
 
         passwordResetRequestedAt: Date | string;
-    }
-    
-    export interface AuthCookie  
-    {
-        userId: string;
-        username: string;
-        encryptionSignature: string;
-    }
-
-    export interface DeliverSettings
-    {
-        label?: string;
-        format?: "mm/dd/yyyy" | "dd/mm/yyyy";
-        addPickerToCheckout?: boolean;
-        allowChangeFromCheckout?: boolean;
     }
 }
