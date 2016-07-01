@@ -1,6 +1,6 @@
 /// <reference path="./../typings/typings.d.ts" />
 
-import {ValidationError,ObjectSchema} from "joi";
+import {ValidationError,ObjectSchema,Schema} from "joi";
 import capitalize = require("string-capitalize");
 
 export function humanizeError(error: ValidationError)
@@ -15,10 +15,18 @@ export function humanizeError(error: ValidationError)
     return message;
 }
 
-export function makeKeysOptional(joi: ObjectSchema)
+/**
+ * Takes a JOI object and makes all of its keys optional. Useful for PUT API methods.
+ */
+export function makeKeysOptional(joi: ObjectSchema, except?: string[])
 {
-    throw new Error("not implemented");
+    let keys = Object.keys(joi);
 
-    // TODO: Loop through all keys in the joi object and then pass them to object.optionalKeys(keys)
-    //joi.optionalKeys([]);
+    if (Array.isArray(except))
+    {
+        keys = keys.filter(key => except.some(excludedKey => excludedKey === key) === false);
+    }
+
+    // Pass all prop names to joiObject.optionalKeys(keys) to make them optional.
+    return joi.optionalKeys(Object.keys(joi));
 }
