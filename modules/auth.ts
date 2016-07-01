@@ -37,6 +37,7 @@ export function configureAuth(server: Server)
 
             const credentials: AuthCredentials = {
                 apiKey: apiKey,
+                isMasterKey: true,
             }
 
             return reply.continue({credentials: credentials});
@@ -47,7 +48,16 @@ export function configureAuth(server: Server)
         authenticate: async (request, reply) =>
         {
             const apiKey = request.headers["x-stages-api-key"];
+            const credentials: AuthCredentials = {
+                apiKey: apiKey,
+                isMasterKey: MasterKey === apiKey,
+            };
             let artifacts: AuthArtifacts;
+
+            if (credentials.isMasterKey)
+            {
+                return reply.continue({credentials: credentials});
+            }
 
             try
             {
@@ -60,6 +70,8 @@ export function configureAuth(server: Server)
                     return reply(unauthorized());
                 }
 
+                console.error("Error retrieving account cache during basic auth.", e);
+
                 return reply(boom(e));
             }
 
@@ -68,10 +80,6 @@ export function configureAuth(server: Server)
                 return reply(unauthorized());
             }
 
-            const credentials: AuthCredentials = {
-                apiKey: apiKey,
-            }
-            
             return reply.continue({credentials: credentials, artifacts: artifacts});
         }
     }));
@@ -166,6 +174,12 @@ async function getAccountCache(apikey: string, autoRefreshCache: boolean): Promi
     {
         // Attempt to pull auth data from database.
         const account = await Accounts.findByApiKey(apikey.toLowerCase());
+
+        if (!account)
+        {
+            return undefined;
+        }
+
         const data: AuthArtifacts = {
             accountId: account._id,
             planId: account.planId,

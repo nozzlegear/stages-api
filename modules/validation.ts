@@ -14,19 +14,3 @@ export function humanizeError(error: ValidationError)
     
     return message;
 }
-
-/**
- * Takes a JOI object and makes all of its keys optional. Useful for PUT API methods.
- */
-export function makeKeysOptional(joi: ObjectSchema, except?: string[])
-{
-    let keys = Object.keys(joi);
-
-    if (Array.isArray(except))
-    {
-        keys = keys.filter(key => except.some(excludedKey => excludedKey === key) === false);
-    }
-
-    // Pass all prop names to joiObject.optionalKeys(keys) to make them optional.
-    return joi.optionalKeys(Object.keys(joi));
-}

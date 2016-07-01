@@ -68,6 +68,7 @@ declare module "gearworks"
     export interface AuthCredentials
     {
         apiKey: string;
+        isMasterKey: boolean;
     }
     
     export interface AuthArtifacts
@@ -151,11 +152,6 @@ declare module "gearworks"
          */
         reasonForCancellation: string;
 
-        /**
-         * The id of the user that owns this account.
-         */
-        ownerId: string;
-
         stripe: {
             customerId: string;
             subscriptionId: string;
@@ -175,8 +171,6 @@ declare module "gearworks"
         }
 
         planId: string;
-
-        stages: Stage[];
 
         hasCreatedStages: boolean;
 

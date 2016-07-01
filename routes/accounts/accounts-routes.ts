@@ -1,18 +1,22 @@
 
 import * as joi from "joi";
 import {IReply} from "hapi";
+import {async as PouchDB} from "pouchdb";
 import {v4 as uuid} from "node-uuid";
 import {strategies} from "../../modules/auth";
 import {Accounts} from "../../modules/database";
+import {Plans, findPlan} from "../../modules/plans";
 import {Server, Request, Account, Plan} from "gearworks";
-import {makeKeysOptional} from "../../modules/validation";
 import {notImplemented, notAcceptable, expectationFailed, notFound, wrap as boom} from "boom";
 
 export default function registerRoutes(server: Server)
 {
-    const accountValidation = joi.object().keys({
-
+    const createValidation = joi.object().keys({
+        planId: joi.string().only(Plans.map(p => p.id)).required(),
     });
+    const putValidation = joi.object().keys({
+        
+    })
 
     server.route({
         path: "/accounts",
@@ -31,7 +35,7 @@ export default function registerRoutes(server: Server)
         config: {
             auth: strategies.masterAuth,
             validate: {
-                payload: accountValidation,
+                payload: createValidation,
             }
         },
         handler: {
@@ -64,7 +68,7 @@ export default function registerRoutes(server: Server)
                 params: joi.object().keys({
                     id: joi.string().required().label("Account Id"),  
                 }),
-                payload: makeKeysOptional(accountValidation)
+                payload: putValidation
             }
         },
         handler: {
@@ -81,22 +85,40 @@ export async function listAccounts(server: Server, request: Request, reply: IRep
 export async function getAccount(server: Server, request: Request, reply: IReply)
 {
     const id = request.params["id"];
-    const apiKey = request.auth.credentials.apiKey;
+    const cred = request.auth.credentials;
     let account: Account;
 
     try
     {
-        account = await Accounts.findByApiKey(apiKey);
+        if (cred.isMasterKey)
+        {
+            account = await Accounts.Database.get<Account>(id);
+
+            return reply(account);
+        }
+        else
+        {
+            account = await Accounts.findByApiKey(cred.apiKey);
+        }
     }
     catch (e)
     {
+        const error: PouchDB.Error = e;
+
+        if (error.status === 404)
+        {
+            return reply(notFound("No account found with that id and API key combination."));
+        }
+
+        console.error("Error finding account by API key.", e);
+
         return reply(boom(e));
     }
 
     // Only return the account if the ApiKey and Id match.
-    if (!account || account._id !== id || account.apiKey !== apiKey)
+    if (!account || account._id !== id || account.apiKey !== cred.apiKey)
     {
-        return reply(notFound("No account find with that id and API key combination."));
+        return reply(notFound("No account found with that id and API key combination."));
     }
 
     return reply(account);
@@ -104,10 +126,29 @@ export async function getAccount(server: Server, request: Request, reply: IReply
 
 export async function createAccount(server: Server, request: Request, reply: IReply)
 {
-    const account: Account = request.payload;
-
-    account._id = uuid();
-    account.apiKey = uuid();
+    let account: Account = {
+        _rev: undefined,
+        _id: uuid(),
+        apiKey: uuid(),
+        dateCreated: new Date().toISOString(),
+        hasCreatedRules: false,
+        hasCreatedStages: false,
+        isCanceled: false,
+        planId: request.payload.planId,
+        reasonForCancellation: undefined,
+        shopify: {
+            accessToken: undefined,
+            chargeId: undefined,
+            permissions: [],
+            shopDomain: undefined,
+            shopId: undefined,
+            shopName: undefined,
+        },
+        stripe: {
+            customerId: undefined,
+            subscriptionId: undefined
+        }
+    }
 
     try
     {
